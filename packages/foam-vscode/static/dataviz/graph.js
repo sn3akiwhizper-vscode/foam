@@ -9,17 +9,17 @@ const initGUI = () => {
     /**
      * Update the DAT controls to reflect the model
      */
-    update: m => {
+    update: (m) => {
       // Update the DAT controls
       const types = new Set(Object.keys(m.showNodesOfType));
       // Add new ones
       Array.from(types)
         .sort()
-        .forEach(type => {
+        .forEach((type) => {
           if (!nodeTypeFilterControllers.has(type)) {
             const ctrl = nodeTypeFilterFolder
               .add(m.showNodesOfType, type)
-              .onFinishChange(function() {
+              .onFinishChange(function () {
                 Actions.updateFilters();
               });
             ctrl.domElement.previousSibling.style.color = getNodeTypeColor(
@@ -52,6 +52,7 @@ const defaultStyle = {
   particleWidth: 1.0,
   highlightedForeground:
     getStyle('--vscode-list-highlightForeground') ?? '#f9c74f',
+  nodeRepulsionFactor: 4.0,
   node: {
     note: getStyle('--vscode-editor-foreground') ?? '#277da1',
     placeholder: getStyle('--vscode-list-deemphasizedForeground') ?? '#545454',
@@ -106,15 +107,15 @@ function update(patch) {
   if (model.hoverNode) {
     focusNodes.add(model.hoverNode);
     const info = model.graph.nodeInfo[model.hoverNode];
-    info.neighbors.forEach(neighborId => focusNodes.add(neighborId));
-    info.links.forEach(link => focusLinks.add(link));
+    info.neighbors.forEach((neighborId) => focusNodes.add(neighborId));
+    info.links.forEach((link) => focusLinks.add(link));
   }
   if (model.selectedNodes) {
-    model.selectedNodes.forEach(nodeId => {
+    model.selectedNodes.forEach((nodeId) => {
       focusNodes.add(nodeId);
       const info = model.graph.nodeInfo[nodeId];
-      info.neighbors.forEach(neighborId => focusNodes.add(neighborId));
-      info.links.forEach(link => focusLinks.add(link));
+      info.neighbors.forEach((neighborId) => focusNodes.add(neighborId));
+      info.links.forEach((link) => focusLinks.add(link));
     });
   }
   model.focusNodes = focusNodes;
@@ -124,20 +125,22 @@ function update(patch) {
 }
 
 const Actions = {
-  refreshWorkspaceData: graphInfo =>
-    update(m => {
+  refreshWorkspaceData: (graphInfo) =>
+    update((m) => {
       m.graph = graphInfo;
 
       // compute node types
       let types = new Set();
-      Object.values(model.graph.nodeInfo).forEach(node => types.add(node.type));
+      Object.values(model.graph.nodeInfo).forEach((node) =>
+        types.add(node.type)
+      );
       const existingTypes = Object.keys(model.showNodesOfType);
-      existingTypes.forEach(exType => {
+      existingTypes.forEach((exType) => {
         if (!types.has(exType)) {
           delete model.showNodesOfType[exType];
         }
       });
-      types.forEach(type => {
+      types.forEach((type) => {
         if (model.showNodesOfType[type] == null) {
           model.showNodesOfType[type] = true;
         }
@@ -146,7 +149,7 @@ const Actions = {
       updateForceGraphDataFromModel(m);
     }),
   selectNode: (nodeId, isAppend) =>
-    update(m => {
+    update((m) => {
       if (!isAppend) {
         m.selectedNodes.clear();
       }
@@ -154,8 +157,8 @@ const Actions = {
         m.selectedNodes.add(nodeId);
       }
     }),
-  highlightNode: nodeId =>
-    update(m => {
+  highlightNode: (nodeId) =>
+    update((m) => {
       m.hoverNode = nodeId;
     }),
   /** Applies a new style to the graph,
@@ -163,7 +166,7 @@ const Actions = {
    *
    * @param {*} newStyle the style to be applied
    */
-  updateStyle: newStyle => {
+  updateStyle: (newStyle) => {
     if (!newStyle) {
       return;
     }
@@ -180,9 +183,10 @@ const Actions = {
       },
     };
     graph.backgroundColor(model.style.background);
+    graph.d3Force(model.style.nodeRepulsionFactor);
   },
   updateFilters: () => {
-    update(m => {
+    update((m) => {
       updateForceGraphDataFromModel(m);
     });
   },
@@ -197,10 +201,10 @@ function initDataviz(channel) {
     .linkHoverPrecision(8)
     .d3Force('x', d3.forceX())
     .d3Force('y', d3.forceY())
-    .d3Force('collide', d3.forceCollide(graph.nodeRelSize()))
+    .d3Force('collide', d3.forceCollide(model.style.nodeRepulsionFactor))
     .linkWidth(() => model.style.lineWidth)
     .linkDirectionalParticles(1)
-    .linkDirectionalParticleWidth(link =>
+    .linkDirectionalParticleWidth((link) =>
       getLinkState(link, model) === 'highlighted'
         ? model.style.particleWidth
         : 0
@@ -229,11 +233,11 @@ function initDataviz(channel) {
         .circle(node.x, node.y, size, fill, border)
         .text(label, node.x, node.y + size + 1, fontSize, textColor);
     })
-    .onRenderFramePost(ctx => {
+    .onRenderFramePost((ctx) => {
       painter.paint(ctx);
     })
-    .linkColor(link => getLinkColor(link, model))
-    .onNodeHover(node => {
+    .linkColor((link) => getLinkColor(link, model))
+    .onNodeHover((node) => {
       Actions.highlightNode(node?.id);
     })
     .onNodeClick((node, event) => {
@@ -243,17 +247,17 @@ function initDataviz(channel) {
       });
       Actions.selectNode(node.id, event.getModifierState('Shift'));
     })
-    .onBackgroundClick(event => {
+    .onBackgroundClick((event) => {
       Actions.selectNode(null, event.getModifierState('Shift'));
     });
 }
 
 function augmentGraphInfo(graph) {
-  Object.values(graph.nodeInfo).forEach(node => {
+  Object.values(graph.nodeInfo).forEach((node) => {
     node.neighbors = [];
     node.links = [];
     if (node.tags && node.tags.length > 0) {
-      node.tags.forEach(tag => {
+      node.tags.forEach((tag) => {
         const tagNode = {
           id: tag.label,
           title: tag.label,
@@ -270,7 +274,7 @@ function augmentGraphInfo(graph) {
       });
     }
   });
-  graph.links.forEach(link => {
+  graph.links.forEach((link) => {
     const a = graph.nodeInfo[link.source];
     const b = graph.nodeInfo[link.target];
     a.neighbors.push(b.id);
@@ -285,12 +289,12 @@ function updateForceGraphDataFromModel(m) {
   // compute graph delta, for smooth transitions we need to mutate objects in-place
   const nodeIdsToAdd = new Set(
     Object.values(m.graph.nodeInfo ?? {})
-      .filter(n => model.showNodesOfType[n.type])
-      .map(n => n.id)
+      .filter((n) => model.showNodesOfType[n.type])
+      .map((n) => n.id)
   );
 
   const nodeIdsToRemove = new Set();
-  m.data.nodes.forEach(node => {
+  m.data.nodes.forEach((node) => {
     if (nodeIdsToAdd.has(node.id)) {
       nodeIdsToAdd.delete(node.id);
     } else {
@@ -298,11 +302,11 @@ function updateForceGraphDataFromModel(m) {
     }
   });
   // apply the delta
-  nodeIdsToRemove.forEach(id => {
-    const index = m.data.nodes.findIndex(n => n.id === id);
+  nodeIdsToRemove.forEach((id) => {
+    const index = m.data.nodes.findIndex((n) => n.id === id);
     m.data.nodes.splice(index, 1); // delete the element
   });
-  nodeIdsToAdd.forEach(nodeId => {
+  nodeIdsToAdd.forEach((nodeId) => {
     m.data.nodes.push({
       id: nodeId,
     });
@@ -310,21 +314,21 @@ function updateForceGraphDataFromModel(m) {
 
   // links can be swapped out without problem, we just need to filter them
   m.data.links = m.graph.links
-    .filter(link => {
+    .filter((link) => {
       const isSource = Object.values(m.data.nodes).some(
-        node => node.id === link.source
+        (node) => node.id === link.source
       );
       const isTarget = Object.values(m.data.nodes).some(
-        node => node.id === link.target
+        (node) => node.id === link.target
       );
       return isSource && isTarget;
     })
-    .map(link => ({ ...link }));
+    .map((link) => ({ ...link }));
 
   // check that selected/hovered nodes are still valid (see #397)
   m.hoverNode = m.graph.nodeInfo[m.hoverNode] != null ? m.hoverNode : null;
   m.selectedNodes = new Set(
-    Array.from(m.selectedNodes).filter(nId => m.graph.nodeInfo[nId] != null)
+    Array.from(m.selectedNodes).filter((nId) => m.graph.nodeInfo[nId] != null)
   );
 
   // annoying we need to call this function, but I haven't found a good workaround
@@ -398,7 +402,7 @@ function getLinkState(link, model) {
   return model.focusNodes.size === 0
     ? 'regular'
     : Array.from(model.focusLinks).some(
-        fLink =>
+        (fLink) =>
           fLink.source === link.source.id && fLink.target === link.target.id
       )
     ? 'highlighted'
@@ -483,7 +487,7 @@ try {
     });
   };
 
-  window.addEventListener('error', error => {
+  window.addEventListener('error', (error) => {
     vscode.postMessage({
       type: 'error',
       payload: {
@@ -496,7 +500,7 @@ try {
     });
   });
 
-  window.addEventListener('message', event => {
+  window.addEventListener('message', (event) => {
     const message = event.data;
     switch (message.type) {
       case 'didUpdateGraphData':
@@ -515,7 +519,7 @@ try {
         break;
       case 'didSelectNote':
         const noteId = message.payload;
-        const node = graph.graphData().nodes.find(node => node.id === noteId);
+        const node = graph.graphData().nodes.find((node) => node.id === noteId);
         if (node) {
           graph.centerAt(node.x, node.y, 300).zoom(3, 300);
           Actions.selectNode(noteId);
@@ -542,7 +546,7 @@ if (window.data) {
   window.graph = graph;
   window.onload = () => {
     initDataviz({
-      postMessage: message => console.log('message', message),
+      postMessage: (message) => console.log('message', message),
     });
     const graphData = augmentGraphInfo(window.data);
     Actions.refreshWorkspaceData(graphData);
